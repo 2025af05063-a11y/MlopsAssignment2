@@ -2,20 +2,42 @@
 
 ### Introduction
 
-LLMOps is the practice of building, deploying, and operating applications that use large language models. It extends MLOps, which commonly manages datasets, model training, validation, deployment, and monitoring, to account for the additional moving parts of generative systems. An LLM application must version and govern prompts, retrieval context, guardrails, and output-quality criteria alongside its model and code. Its operational measures also include inference cost, response latency, and token consumption, which can vary with both the input and the generated response. These components need to be evaluated together because changing a prompt can affect correctness, format, latency, and cost even when the underlying model stays the same.
+LLMOps is the practice of building, deploying, and operating applications powered by large language models. It extends MLOps, which manages data, training, validation, deployment, and monitoring, to handle generative systems' additional operational needs. Teams version prompts, retrieval context, guardrails, and output-quality criteria alongside model and code. They also monitor inference cost, latency, and token use, which vary with the input and generated response. These concerns interact: changing a prompt can affect correctness, format, latency, and cost even when the model stays fixed.
 
 ### Latency Findings
 
-The local `llama3.2:3b` model completed all five baseline requests successfully. Latency averaged 11,476 ms (11.48 seconds), with a median of 10,255 ms, a standard deviation of 3,947 ms, a minimum of 7,888 ms, and a maximum of 15,847 ms. The slowest request was question 4, which asked for the water cycle and its main stages. In the separate token-count and cost pass, this question also produced the largest response at 434 output tokens, consistent with more generation work contributing to the longer delay. Since the token count and latency came from separate calls, this is an explanation rather than proof of causation. Local hardware load and inference variability can also affect elapsed time. All five baseline calls succeeded, but this small sample is not enough to characterize production tail latency.
+The local `llama3.2:3b` model completed all five baseline requests successfully. Latency averaged 11,476 ms (11.48 seconds), with a median of 10,255 ms, standard deviation of 3,947 ms, minimum of 7,888 ms, and maximum of 15,847 ms. The slowest request was question 4 about the water cycle and its main stages. In the separate token-count and cost pass, it also had the longest response at 434 output tokens, consistent with generation length contributing to delay. Because latency and token counts came from separate calls, this is suggestive rather than causal evidence. Hardware load and inference variability also matter. Five requests are too few to characterize production tail latency.
 
 ### Cost Analysis
 
-Because the model ran locally, there was no per-token provider invoice to report. The notebook instead estimates compute cost by assuming a rate of $0.10 per hour and multiplying that rate by each request's elapsed inference time. The resulting average is $0.00031537 per request. At an assumed volume of 10,000 requests per month, the projected compute cost is $3.1537. This is a local-compute proxy, not a full total cost of ownership: it excludes electricity, idle capacity, hardware purchase or depreciation, and operational overhead, and the assumed hourly rate may not match the deployment environment. The most direct optimization is to reduce unnecessary generation: cap output length, ask for concise answers, and use a smaller model for straightforward questions where quality remains acceptable. Shorter prompts and caching repeated context may further reduce processing time and token use.
+Because the model ran locally, there was no per-token provider invoice. The notebook estimates compute cost using an assumed rate of $0.10 per hour multiplied by each request's elapsed inference time. The average is $0.00031537 per request; at 10,000 requests per month, projected compute cost is $3.1537. This proxy is not total cost of ownership: it excludes electricity, idle capacity, hardware purchase or depreciation, and operational overhead, and the hourly rate may not match deployment conditions. To optimize, cap output length, request concise answers, and use a smaller model for simple questions when quality remains acceptable. Shorter prompts and caching repeated context may also reduce processing time and token use.
 
 ### Prompt Evaluation
 
-Three registered prompt versions were tested on the same five academic questions. Version 1 was a basic instruction to answer clearly. Version 2 added an academic-assistant role and requested clear, concise, accurate answers in undergraduate-friendly language. Version 3 required only JSON with `answer`, `confidence`, and `key_points` fields. The `valid_json` check parsed each v3 response and confirmed that all three required keys were present. It passed for all five responses: 5/5, or 100%. The metric was recorded only for v3, so the results do not establish comparative JSON performance for v1 or v2, nor do they measure factual accuracy, completeness, or confidence calibration. The notebook assigned the production alias to version 3. That is a reasonable choice when downstream consumers require structured JSON, but it should be treated as an initial promotion: the sample is small and the metric tests format rather than answer quality. A broader representative evaluation should add semantic-quality checks and failure cases before relying on the prompt in a high-impact workflow.
+Three registered prompt versions were tested on the same five academic questions. Version 1 simply asked for a clear answer. Version 2 added an academic-assistant role and requested concise, accurate, undergraduate-friendly language. Version 3 required JSON containing `answer`, `confidence`, and `key_points`. Figures 1–3 document the prompt comparisons and v3 template; Figure 4 shows the logged evaluation metrics, and Figure 5 confirms the production alias. The `valid_json` check parsed each v3 response and verified all required keys. It passed for all five: 5/5, or 100%. This metric was recorded only for v3, so it does not compare JSON performance across versions or measure factual accuracy, completeness, or confidence calibration. The notebook assigned the production alias to v3. This is reasonable when downstream systems require structured JSON, but should be considered an initial promotion: the sample is small and the metric tests format, not answer quality. A broader evaluation should include semantic-quality checks and failure cases before high-impact use.
 
 ### Conclusion
 
-This exercise shows that operationalizing an LLM application requires more than making inference work. Prompt versions and their intended output contracts should be tracked, and evaluations should measure both machine-checkable behavior and answer quality. Latency and token data make performance and cost trade-offs visible, while local-model estimates need their assumptions stated so they are not mistaken for complete deployment costs. Finally, a production alias should follow an explicit evaluation gate rather than a hard-coded choice. Repeating these measurements across more requests, hardware conditions, and representative questions would make the deployment decision more robust.
+Operationalizing an LLM application requires more than making inference work. Track prompt versions and output contracts, and evaluate both machine-checkable behavior and answer quality. Latency and token data expose performance and cost trade-offs, while local-model estimates need explicit assumptions to avoid implying full deployment cost. Production promotion should follow an evaluation gate rather than a hard-coded choice. More requests, hardware conditions, and representative questions would make the decision more robust.
+
+### MLflow Screenshots
+
+![Figure 1](MLflow%20screenshots/Compare%20v1%20and%20v2%20prompt.png)
+
+**Figure 1.** Comparison of prompt versions 2 and 1.
+
+![Figure 2](MLflow%20screenshots/Compare%20Prompt%20Version.png)
+
+**Figure 2.** Comparison of prompt versions 3 and 2; v3 is production.
+
+![Figure 3](MLflow%20screenshots/Prompt%20Evaluation.png)
+
+**Figure 3.** Version 3 JSON prompt preview.
+
+![Figure 4](MLflow%20screenshots/Evaluation%20Run.png)
+
+**Figure 4.** MLflow evaluation metrics.
+
+![Figure 5](MLflow%20screenshots/production%20aliases.png)
+
+**Figure 5.** Production alias assigned to version 3.

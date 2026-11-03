@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LLMOps Report</title>
+<style>
+@page { size: letter; margin: 0.65in; }
+* { box-sizing: border-box; }
+body { color: #202a35; font: 10.5pt/1.48 Georgia, "Times New Roman", serif; margin: 0 auto; max-width: 7.2in; }
+h1 { border-bottom: 2px solid #177e89; color: #173642; font: bold 22pt/1.2 Arial, sans-serif; margin: 0 0 18pt; padding-bottom: 8pt; }
+h2 { color: #176b73; font: bold 14pt/1.2 Arial, sans-serif; margin: 16pt 0 5pt; }
+p { margin: 0 0 9pt; }
+code { background: #eef2f3; font: 9pt Consolas, monospace; padding: 1px 3px; }
+.appendix { break-before: page; page-break-before: always; }
+figure { break-inside: avoid; page-break-inside: avoid; margin: 0 0 18pt; text-align: center; }
+figure img { display: block; height: auto; margin: 0 auto 5pt; max-height: 4.05in; max-width: 100%; object-fit: contain; }
+figcaption { color: #344b55; font: 9pt/1.3 Arial, sans-serif; text-align: left; }
+@media screen { body { margin: 32px auto; max-width: 760px; padding: 0 24px; } figure img { max-height: 430px; } }
+</style>
+</head>
+<body>
+<h1>6.1 Report</h1>
+<h2>Introduction</h2>
+<p>LLMOps is the practice of building, deploying, and operating applications powered by large language models. It extends MLOps, which manages data, training, validation, deployment, and monitoring, to handle generative systems' additional operational needs. Teams version prompts, retrieval context, guardrails, and output-quality criteria alongside model and code. They also monitor inference cost, latency, and token use, which vary with the input and generated response. These concerns interact: changing a prompt can affect correctness, format, latency, and cost even when the model stays fixed.</p>
+<h2>Latency Findings</h2>
+<p>The local <code>llama3.2:3b</code> model completed all five baseline requests successfully. Latency averaged 11,476 ms (11.48 seconds), with a median of 10,255 ms, standard deviation of 3,947 ms, minimum of 7,888 ms, and maximum of 15,847 ms. The slowest request was question 4 about the water cycle and its main stages. In the separate token-count and cost pass, it also had the longest response at 434 output tokens, consistent with generation length contributing to delay. Because latency and token counts came from separate calls, this is suggestive rather than causal evidence. Hardware load and inference variability also matter. Five requests are too few to characterize production tail latency.</p>
+<h2>Cost Analysis</h2>
+<p>Because the model ran locally, there was no per-token provider invoice. The notebook estimates compute cost using an assumed rate of $0.10 per hour multiplied by each request's elapsed inference time. The average is $0.00031537 per request; at 10,000 requests per month, projected compute cost is $3.1537. This proxy is not total cost of ownership: it excludes electricity, idle capacity, hardware purchase or depreciation, and operational overhead, and the hourly rate may not match deployment conditions. To optimize, cap output length, request concise answers, and use a smaller model for simple questions when quality remains acceptable. Shorter prompts and caching repeated context may also reduce processing time and token use.</p>
+<h2>Prompt Evaluation</h2>
+<p>Three registered prompt versions were tested on the same five academic questions. Version 1 simply asked for a clear answer. Version 2 added an academic-assistant role and requested concise, accurate, undergraduate-friendly language. Version 3 required JSON containing <code>answer</code>, <code>confidence</code>, and <code>key_points</code>. Figures 1–3 document the prompt comparisons and v3 template; Figure 4 shows the logged evaluation metrics, and Figure 5 confirms the production alias. The <code>valid_json</code> check parsed each v3 response and verified all required keys. It passed for all five: 5/5, or 100%. This metric was recorded only for v3, so it does not compare JSON performance across versions or measure factual accuracy, completeness, or confidence calibration. The notebook assigned the production alias to v3. This is reasonable when downstream systems require structured JSON, but should be considered an initial promotion: the sample is small and the metric tests format, not answer quality. A broader evaluation should include semantic-quality checks and failure cases before high-impact use.</p>
+<h2>Conclusion</h2>
+<p>Operationalizing an LLM application requires more than making inference work. Track prompt versions and output contracts, and evaluate both machine-checkable behavior and answer quality. Latency and token data expose performance and cost trade-offs, while local-model estimates need explicit assumptions to avoid implying full deployment cost. Production promotion should follow an evaluation gate rather than a hard-coded choice. More requests, hardware conditions, and representative questions would make the decision more robust.</p>
+<section class="appendix">
+<h1>MLflow Screenshots</h1>
+<figure><img src="MLflow%20screenshots/Compare%20v1%20and%20v2%20prompt.png" alt="MLflow comparison of prompt versions 2 and 1"><figcaption>Figure 1. Comparison of prompt versions 2 and 1.</figcaption></figure>
+<figure><img src="MLflow%20screenshots/Compare%20Prompt%20Version.png" alt="MLflow comparison of prompt versions 3 and 2, with v3 production"><figcaption>Figure 2. Comparison of prompt versions 3 and 2; v3 is production.</figcaption></figure>
+<figure><img src="MLflow%20screenshots/Prompt%20Evaluation.png" alt="MLflow preview of the version 3 JSON prompt"><figcaption>Figure 3. Version 3 JSON prompt preview.</figcaption></figure>
+<figure><img src="MLflow%20screenshots/Evaluation%20Run.png" alt="MLflow evaluation metrics for valid JSON and average token use"><figcaption>Figure 4. MLflow evaluation metrics.</figcaption></figure>
+<figure><img src="MLflow%20screenshots/production%20aliases.png" alt="MLflow production alias assigned to prompt version 3"><figcaption>Figure 5. Production alias assigned to version 3.</figcaption></figure>
+</section>
+</body>
+</html>
