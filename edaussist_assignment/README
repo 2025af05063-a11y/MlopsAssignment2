@@ -1,0 +1,6 @@
+Python version: 3.10+ (verify with python --version)
+Required libraries: ollama, mlflow, pandas, jupyter
+Install: pip install -r requirements.txt
+Ollama setup: ollama serve ; ollama pull llama3.2:3b
+MLflow UI: mlflow server --port 5000
+Reproduction: Open assignment.ipynb → Run All cells → Check localhost:5000 → Export CSVs
